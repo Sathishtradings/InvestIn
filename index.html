@@ -349,27 +349,9 @@ function loadSaved() {
 }
 
 // ── DEFAULT WATCHLIST (used only if nothing saved) ────────
-var WL = [
-  {n:'Reliance Industries', s:'RELIANCE.NS', sec:'Energy',  sig:'BUY',  tgt:3200},
-  {n:'Infosys',             s:'INFY.NS',     sec:'IT',      sig:'BUY',  tgt:1800},
-  {n:'HDFC Bank',           s:'HDFCBANK.NS', sec:'Banking', sig:'HOLD', tgt:1750},
-  {n:'Tata Motors',         s:'TATAMOTORS.NS',sec:'Auto',   sig:'BUY',  tgt:1100},
-  {n:'Sun Pharma',          s:'SUNPHARMA.NS',sec:'Pharma',  sig:'BUY',  tgt:1950},
-  {n:'TCS',                 s:'TCS.NS',      sec:'IT',      sig:'HOLD', tgt:4200},
-  {n:'ICICI Bank',          s:'ICICIBANK.NS',sec:'Banking', sig:'BUY',  tgt:1400},
-  {n:'Wipro',               s:'WIPRO.NS',    sec:'IT',      sig:'HOLD', tgt:600}
-];
+var WL = [];
 
-var IDEAS = [
-  {n:'Reliance Industries', s:'RELIANCE.NS',   tgt:3200, sig:'BUY',  why:'Jio growth + O2C margin expansion.'},
-  {n:'Infosys',             s:'INFY.NS',       tgt:1800, sig:'BUY',  why:'AI deals accelerating. Below 5Y avg PE.'},
-  {n:'HDFC Bank',           s:'HDFCBANK.NS',   tgt:1750, sig:'HOLD', why:'NIM pressure post-merger.'},
-  {n:'Tata Motors',         s:'TATAMOTORS.NS', tgt:1100, sig:'BUY',  why:'JLR recovery + India EV 70% share.'},
-  {n:'Sun Pharma',          s:'SUNPHARMA.NS',  tgt:1950, sig:'BUY',  why:'Specialty portfolio. Ilumya growing 30%+.'},
-  {n:'ICICI Bank',          s:'ICICIBANK.NS',  tgt:1400, sig:'BUY',  why:'ROE 17.9%. Low NPA. Strong retail franchise.'},
-  {n:'TCS',                 s:'TCS.NS',        tgt:4200, sig:'HOLD', why:'Stable but expensive at current levels.'},
-  {n:'Wipro',               s:'WIPRO.NS',      tgt:600,  sig:'HOLD', why:'Margin recovery. Revenue growth muted.'}
-];
+var IDEAS = [];
 
 var PF = []; // loaded from localStorage
 var SCOLS = {IT:'#1D9E75',Banking:'#378ADD',Auto:'#EF9F27',Energy:'#D85A30',Pharma:'#7F77DD',FMCG:'#E24B4A',Metal:'#888780',Other:'#9CA3AF'};
@@ -560,22 +542,7 @@ function renderIdeas(prices) {
 }
 
 // ── SCREENER ─────────────────────────────────────────────
-var SD=[
-  {n:'Reliance Industries',s:'RELIANCE',  sec:'Energy', mc:'Large Cap',pe:27.4,roe:9.8, sig:'BUY', sc:78},
-  {n:'Infosys',            s:'INFY',      sec:'IT',     mc:'Large Cap',pe:24.1,roe:31.2,sig:'BUY', sc:82},
-  {n:'HDFC Bank',          s:'HDFCBANK',  sec:'Banking',mc:'Large Cap',pe:18.2,roe:16.4,sig:'HOLD',sc:61},
-  {n:'Tata Motors',        s:'TATAMOTORS',sec:'Auto',   mc:'Large Cap',pe:11.3,roe:22.1,sig:'BUY', sc:74},
-  {n:'Sun Pharma',         s:'SUNPHARMA', sec:'Pharma', mc:'Large Cap',pe:34.6,roe:18.3,sig:'BUY', sc:71},
-  {n:'ICICI Bank',         s:'ICICIBANK', sec:'Banking',mc:'Large Cap',pe:16.8,roe:17.9,sig:'BUY', sc:80},
-  {n:'Bajaj Finance',      s:'BAJFINANCE',sec:'Banking',mc:'Large Cap',pe:28.1,roe:21.4,sig:'BUY', sc:76},
-  {n:'Wipro',              s:'WIPRO',     sec:'IT',     mc:'Large Cap',pe:19.6,roe:14.8,sig:'HOLD',sc:58},
-  {n:'Maruti Suzuki',      s:'MARUTI',    sec:'Auto',   mc:'Large Cap',pe:26.7,roe:18.9,sig:'BUY', sc:72},
-  {n:'Adani Ports',        s:'ADANIPORTS',sec:'Infra',  mc:'Large Cap',pe:22.1,roe:14.1,sig:'BUY', sc:68},
-  {n:'Tata Steel',         s:'TATASTEEL', sec:'Metal',  mc:'Large Cap',pe:13.2,roe:8.7, sig:'HOLD',sc:60},
-  {n:'HUL',                s:'HINDUNILVR',sec:'FMCG',   mc:'Large Cap',pe:54.3,roe:20.6,sig:'HOLD',sc:57},
-  {n:'Zomato',             s:'ZOMATO',    sec:'IT',     mc:'Mid Cap',  pe:312, roe:2.1, sig:'HOLD',sc:49},
-  {n:'Paytm',              s:'PAYTM',     sec:'IT',     mc:'Mid Cap',  pe:0,   roe:-8.2,sig:'SELL',sc:22}
-];
+var SD=[];
 var sortK='sc',sortD=-1;
 function runSc(){
   var sec=document.getElementById('fs').value,mc=document.getElementById('fm').value;

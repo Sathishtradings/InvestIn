@@ -472,45 +472,37 @@ function fetchAll(tickers) {
 }
 
 // ── MAIN REFRESH ──────────────────────────────────────────
-async function refreshAll() {
+function refreshAll() {
   document.getElementById('upd').textContent = 'Updating...';
-
-  // Collect all unique tickers
   var tickerSet = {};
   WL.forEach(function(w){ tickerSet[w.s]=1; });
   IDEAS.forEach(function(i){ tickerSet[i.s]=1; });
   PF.forEach(function(h){ tickerSet[h.s]=1; });
-  // Indices
   ['^NSEI','^BSESN','^NSEBANK','NIFTYIT.NS'].forEach(function(t){ tickerSet[t]=1; });
 
-  // FETCH ALL IN PARALLEL — this is why it's now fast
-  var prices = await fetchAll(Object.keys(tickerSet));
-
-  // Update portfolio CMPs
-  PF.forEach(function(h){ if(prices[h.s]) h.cmp = prices[h.s].price; });
-
-  // Update index bar
-  var idxMap = [
-    {t:'^NSEI',    vi:'i0',ci:'ic0'},
-    {t:'^BSESN',   vi:'i1',ci:'ic1'},
-    {t:'^NSEBANK', vi:'i2',ci:'ic2'},
-    {t:'NIFTYIT.NS',vi:'i3',ci:'ic3'}
-  ];
-  idxMap.forEach(function(idx){
-    var d = prices[idx.t];
-    if(!d) return;
-    document.getElementById(idx.vi).textContent = fp(d.price);
-    var el = document.getElementById(idx.ci);
-    el.textContent = (d.pct>=0?'+':'')+d.pct.toFixed(2)+'%';
-    el.className = 'ic '+(d.pct>=0?'up':'dn');
+  return fetchAll(Object.keys(tickerSet)).then(function(prices) {
+    PF.forEach(function(h){ if(prices[h.s]) h.cmp = prices[h.s].price; });
+    var idxMap = [
+      {t:'^NSEI',    vi:'i0',ci:'ic0'},
+      {t:'^BSESN',   vi:'i1',ci:'ic1'},
+      {t:'^NSEBANK', vi:'i2',ci:'ic2'},
+      {t:'NIFTYIT.NS',vi:'i3',ci:'ic3'}
+    ];
+    idxMap.forEach(function(idx){
+      var d = prices[idx.t];
+      if(!d) return;
+      document.getElementById(idx.vi).textContent = fp(d.price);
+      var el = document.getElementById(idx.ci);
+      el.textContent = (d.pct>=0?'+':'')+d.pct.toFixed(2)+'%';
+      el.className = 'ic '+(d.pct>=0?'up':'dn');
+    });
+    renderWL(prices);
+    renderIdeas(prices);
+    if(document.getElementById('p-pf').classList.contains('active')){
+      renderPF(); setTimeout(renderDonut,80);
+    }
+    document.getElementById('upd').textContent = 'Updated '+new Date().toLocaleTimeString('en-IN');
   });
-
-  renderWL(prices);
-  renderIdeas(prices);
-  if(document.getElementById('p-pf').classList.contains('active')){
-    renderPF(); setTimeout(renderDonut,80);
-  }
-  document.getElementById('upd').textContent = 'Updated '+new Date().toLocaleTimeString('en-IN');
 }
 
 // ── WATCHLIST ─────────────────────────────────────────────
@@ -560,18 +552,18 @@ function removeWatch(i) {
   refreshAll();
 }
 
-async function addWatch() {
+function addWatch() {
   var inp = document.getElementById('wi');
   var raw = inp.value.trim().toUpperCase().replace('.NS','').replace('.BO','');
   if(!raw) return;
   var s = raw+'.NS';
   if(WL.find(function(w){return w.s===s;})){alert('Already in watchlist');return;}
   WL.push({n:raw, s:s, sec:'Other', sig:'HOLD', tgt:0});
-  saveWL(); // persist immediately
+  saveWL();
   inp.value='';
   document.getElementById('wl-grid').style.display='none';
   document.getElementById('wl-load').style.display='flex';
-  await refreshAll();
+  refreshAll();
 }
 
 // ── IDEAS TABLE ───────────────────────────────────────────
@@ -658,7 +650,7 @@ function setMode(mode) {
   runScreen();
 }
 
-async function runScreen() {
+function runScreen() {
   var sector = document.getElementById('sc-sector').value;
   var filtered = sector ? NSE_STOCKS.filter(function(s){ return s.sec === sector; }) : NSE_STOCKS;
   var res = document.getElementById('sc-live-res');
@@ -669,7 +661,7 @@ async function runScreen() {
     '<div style="margin-top:12px;font-size:13px">Scanning '+filtered.length+' NSE stocks...</div></div>';
   status.textContent = 'Scanning...';
 
-  var prices = await fetchAll(filtered.map(function(s){ return s.s; }));
+  fetchAll(filtered.map(function(s){ return s.s; })).then(function(prices) {
 
   var stocks = [];
   filtered.forEach(function(st) {
@@ -756,6 +748,7 @@ async function runScreen() {
 
   res.innerHTML = html;
   setTimeout(function(){res.scrollIntoView({behavior:'smooth',block:'start'});},100);
+  }); // end fetchAll.then
 }
 
 // ── MUTUAL FUNDS ─────────────────────────────────────────
@@ -870,7 +863,7 @@ function renderPF(){
 function updQ(i,v){PF[i].qty=parseInt(v)||0;savePF();renderPF();setTimeout(renderDonut,50);}
 function remH(i){PF.splice(i,1);savePF();renderPF();setTimeout(renderDonut,50);}
 
-async function addH(){
+function addH(){
   var n=document.getElementById('ns').value.trim();
   var s=document.getElementById('nt').value.trim().toUpperCase().replace('.NS','').replace('.BO','');
   var q=parseInt(document.getElementById('nq').value)||0;
@@ -878,16 +871,16 @@ async function addH(){
   if(!n||!q||!a){alert('Please fill Name, Symbol, Qty and Avg Price');return;}
   if(!s)s=n.toUpperCase().replace(/ /g,'').slice(0,12);
   var yfSym=s+'.NS';
-  var found=SD.find(function(d){return d.s===s;});
+  var found=NSE_STOCKS.find(function(d){return d.s===yfSym;});
   var sec=found?found.sec:'Other';
   var h={n:n,s:yfSym,sec:sec,qty:q,avg:a,cmp:0};
   PF.push(h);
-  savePF(); // save immediately
+  savePF();
   ['ns','nt','nq','na'].forEach(function(id){document.getElementById(id).value='';});
   renderPF();
-  // Fetch price for the new stock
-  var prices=await fetchAll([yfSym]);
-  if(prices[yfSym]){h.cmp=prices[yfSym].price;renderPF();setTimeout(renderDonut,50);}
+  fetchAll([yfSym]).then(function(prices){
+    if(prices[yfSym]){h.cmp=prices[yfSym].price;renderPF();setTimeout(renderDonut,50);}
+  });
 }
 
 function renderDonut(){

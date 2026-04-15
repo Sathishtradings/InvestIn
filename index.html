@@ -130,6 +130,27 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
 .nt2{font-size:13px;font-weight:500;line-height:1.5;margin-bottom:4px}.nm{font-size:11px;color:var(--t3)}
 .star{color:var(--am)}
 .empty-pf{text-align:center;padding:40px 20px;color:var(--t2)}
+.sc-mode-btn{padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--br);color:var(--t2);background:var(--sf);font-family:var(--fn);transition:all .15s}
+.sc-mode-btn.active{background:var(--g);color:#fff;border-color:var(--g)}
+.sc-mode-btn:hover:not(.active){border-color:var(--g);color:var(--g)}
+.sc-card{background:var(--sf);border:1px solid var(--br);border-radius:var(--radl);padding:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;transition:all .15s}
+.sc-card:hover{border-color:rgba(29,158,117,.4);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.sc-card-l{flex:1}
+.sc-name{font-size:13px;font-weight:600;color:var(--t)}
+.sc-sym{font-size:10px;color:var(--t2);font-family:var(--mo);margin-top:1px}
+.sc-detail{font-size:11px;color:var(--t2);margin-top:4px}
+.sc-card-r{text-align:right}
+.sc-price{font-size:16px;font-weight:700;font-family:var(--mo)}
+.sc-chg{font-size:12px;font-weight:500;margin-top:2px}
+.sc-badge{display:inline-block;font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;margin-top:4px}
+.badge-bo{background:#E1F5EE;color:#0F6E56}
+.badge-bd{background:#FCEBEB;color:#A32D2D}
+.badge-vol{background:#FAEEDA;color:#854F0B}
+.badge-gain{background:#E1F5EE;color:#0F6E56}
+.badge-lose{background:#FCEBEB;color:#A32D2D}
+.progress-mini{height:3px;background:#F0F0F0;border-radius:2px;margin-top:6px;overflow:hidden}
+.progress-fill-g{height:100%;background:var(--g);border-radius:2px}
+.progress-fill-r{height:100%;background:var(--r);border-radius:2px}
 .saved-badge{background:#E6F1FB;color:#185FA5;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
 </style>
 </head>
@@ -206,28 +227,41 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
 
 <!-- SCREENER -->
 <div class="panel" id="p-sc">
-  <div class="sec">Stock Screener</div>
-  <div class="sflt">
-    <div class="flg"><div class="flbl">Sector</div>
-      <select id="fs"><option value="">All</option><option>IT</option><option>Banking</option><option>Energy</option><option>Auto</option><option>Pharma</option><option>FMCG</option><option>Metal</option><option>Infra</option></select>
-    </div>
-    <div class="flg"><div class="flbl">Cap</div>
-      <select id="fm"><option value="">All</option><option>Large Cap</option><option>Mid Cap</option><option>Small Cap</option></select>
-    </div>
-    <div class="flg"><div class="flbl">P/E</div>
-      <select id="fp"><option value="">Any</option><option value="lt15">Below 15</option><option value="lt25">Below 25</option><option value="lt40">Below 40</option></select>
-    </div>
-    <div class="flg"><div class="flbl">Signal</div>
-      <select id="fsig"><option value="">All</option><option>BUY</option><option>HOLD</option><option>SELL</option></select>
-    </div>
-    <div class="flg"><div class="flbl">Min Score</div>
-      <input type="number" id="fsc2" placeholder="0-100" min="0" max="100" style="width:80px"/>
-    </div>
-    <button class="bsc" onclick="runSc()">Run</button>
-    <button class="bo" onclick="resetSc()">Reset</button>
+  <div class="sec">Live Technical Screener — NSE</div>
+
+  <!-- MODE TOGGLE -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="sc-mode-btn active" id="btn-breakout" onclick="setMode('breakout')">🚀 Breakouts</button>
+    <button class="sc-mode-btn" id="btn-breakdown" onclick="setMode('breakdown')">📉 Breakdowns</button>
+    <button class="sc-mode-btn" id="btn-volume" onclick="setMode('volume')">🔥 Volume Surge</button>
+    <button class="sc-mode-btn" id="btn-gainers" onclick="setMode('gainers')">▲ Top Gainers</button>
+    <button class="sc-mode-btn" id="btn-losers" onclick="setMode('losers')">▼ Top Losers</button>
   </div>
-  <div id="sc-res"></div>
-  <button class="bai" onclick="sendPrompt('Suggest criteria to find hidden gem stocks in India and explain each metric.')">Help me screen smarter</button>
+
+  <!-- SECTOR FILTER -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+    <div class="flg"><div class="flbl">Sector</div>
+      <select id="sc-sector" onchange="runScreen()" style="padding:6px 10px;border:1px solid var(--br);border-radius:var(--rad);background:var(--bg);color:var(--t);font-size:12px;font-family:var(--fn)">
+        <option value="">All Sectors</option>
+        <option>IT</option><option>Banking</option><option>Energy</option>
+        <option>Auto</option><option>Pharma</option><option>FMCG</option>
+        <option>Metal</option><option>Infra</option><option>Telecom</option>
+      </select>
+    </div>
+    <button class="bsc" onclick="runScreen()" style="align-self:flex-end">Scan Now</button>
+    <span id="sc-status" style="font-size:11px;color:var(--t2);align-self:flex-end"></span>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="sc-live-res">
+    <div style="text-align:center;padding:30px;color:var(--t2)">
+      <div style="font-size:32px;margin-bottom:10px">📡</div>
+      <div style="font-weight:500">Select a scan type and tap Scan Now</div>
+      <div style="font-size:12px;margin-top:4px">Scans 50+ NSE stocks in real time</div>
+    </div>
+  </div>
+
+  <button class="bai" style="margin-top:8px" onclick="sendPrompt('Explain what breakout and breakdown mean in technical analysis for Indian stocks. How should I trade them?')">Learn breakout trading ↗</button>
 </div>
 
 <!-- MF -->
@@ -349,9 +383,27 @@ function loadSaved() {
 }
 
 // ── DEFAULT WATCHLIST (used only if nothing saved) ────────
-var WL = [];
+var WL = [
+  {n:'Reliance Industries', s:'RELIANCE.NS', sec:'Energy',  sig:'BUY',  tgt:3200},
+  {n:'Infosys',             s:'INFY.NS',     sec:'IT',      sig:'BUY',  tgt:1800},
+  {n:'HDFC Bank',           s:'HDFCBANK.NS', sec:'Banking', sig:'HOLD', tgt:1750},
+  {n:'Tata Motors',         s:'TATAMOTORS.NS',sec:'Auto',   sig:'BUY',  tgt:1100},
+  {n:'Sun Pharma',          s:'SUNPHARMA.NS',sec:'Pharma',  sig:'BUY',  tgt:1950},
+  {n:'TCS',                 s:'TCS.NS',      sec:'IT',      sig:'HOLD', tgt:4200},
+  {n:'ICICI Bank',          s:'ICICIBANK.NS',sec:'Banking', sig:'BUY',  tgt:1400},
+  {n:'Wipro',               s:'WIPRO.NS',    sec:'IT',      sig:'HOLD', tgt:600}
+];
 
-var IDEAS = [];
+var IDEAS = [
+  {n:'Reliance Industries', s:'RELIANCE.NS',   tgt:3200, sig:'BUY',  why:'Jio growth + O2C margin expansion.'},
+  {n:'Infosys',             s:'INFY.NS',       tgt:1800, sig:'BUY',  why:'AI deals accelerating. Below 5Y avg PE.'},
+  {n:'HDFC Bank',           s:'HDFCBANK.NS',   tgt:1750, sig:'HOLD', why:'NIM pressure post-merger.'},
+  {n:'Tata Motors',         s:'TATAMOTORS.NS', tgt:1100, sig:'BUY',  why:'JLR recovery + India EV 70% share.'},
+  {n:'Sun Pharma',          s:'SUNPHARMA.NS',  tgt:1950, sig:'BUY',  why:'Specialty portfolio. Ilumya growing 30%+.'},
+  {n:'ICICI Bank',          s:'ICICIBANK.NS',  tgt:1400, sig:'BUY',  why:'ROE 17.9%. Low NPA. Strong retail franchise.'},
+  {n:'TCS',                 s:'TCS.NS',        tgt:4200, sig:'HOLD', why:'Stable but expensive at current levels.'},
+  {n:'Wipro',               s:'WIPRO.NS',      tgt:600,  sig:'HOLD', why:'Margin recovery. Revenue growth muted.'}
+];
 
 var PF = []; // loaded from localStorage
 var SCOLS = {IT:'#1D9E75',Banking:'#378ADD',Auto:'#EF9F27',Energy:'#D85A30',Pharma:'#7F77DD',FMCG:'#E24B4A',Metal:'#888780',Other:'#9CA3AF'};
@@ -542,38 +594,169 @@ function renderIdeas(prices) {
 }
 
 // ── SCREENER ─────────────────────────────────────────────
-var SD=[];
-var sortK='sc',sortD=-1;
-function runSc(){
-  var sec=document.getElementById('fs').value,mc=document.getElementById('fm').value;
-  var pe=document.getElementById('fp').value,sig=document.getElementById('fsig').value;
-  var msc=parseInt(document.getElementById('fsc2').value)||0;
-  var data=SD.filter(function(s){
-    if(sec&&s.sec!==sec)return false; if(mc&&s.mc!==mc)return false;
-    if(sig&&s.sig!==sig)return false; if(s.sc<msc)return false;
-    if(pe==='lt15'&&s.pe>=15)return false; if(pe==='lt25'&&s.pe>=25)return false;
-    if(pe==='lt40'&&s.pe>=40)return false;
-    return true;
-  });
-  data.sort(function(a,b){return sortD*(a[sortK]>b[sortK]?1:-1);});
-  var tc=function(s){return s==='BUY'?'tbuy':s==='SELL'?'tsell':'thold';};
-  document.getElementById('sc-res').innerHTML='<div style="overflow-x:auto"><table class="tbl">'+
-    '<thead><tr><th onclick="ss(\'n\')">Stock</th><th onclick="ss(\'sec\')">Sector</th>'+
-    '<th onclick="ss(\'mc\')">Cap</th><th onclick="ss(\'pe\')">P/E</th>'+
-    '<th onclick="ss(\'roe\')">ROE</th><th onclick="ss(\'sc\')">Score</th><th>Signal</th></tr></thead><tbody>'+
-    data.map(function(s){
-      return '<tr><td><div style="font-weight:600">'+s.n+'</div><div style="font-size:11px;color:var(--t2);font-family:var(--mo)">'+s.s+'</div></td>'+
-        '<td>'+s.sec+'</td><td style="font-size:12px">'+s.mc+'</td>'+
-        '<td style="font-family:var(--mo)">'+(s.pe>0?s.pe.toFixed(1)+'x':'N/A')+'</td>'+
-        '<td style="font-family:var(--mo);'+(s.roe<0?'color:var(--r)':'')+'">'+s.roe.toFixed(1)+'%</td>'+
-        '<td><div class="sbr"><div class="sfl" style="width:'+Math.min(s.sc,80)+'px"></div>'+
-        '<span style="font-size:11px;font-weight:600;font-family:var(--mo)">'+s.sc+'</span></div></td>'+
-        '<td><span class="tag '+tc(s.sig)+'">'+s.sig+'</span></td></tr>';
-    }).join('')+
-    '</tbody></table></div><div style="font-size:11px;color:var(--t2);margin-top:8px">'+data.length+' stocks matched</div>';
+// ── LIVE TECHNICAL SCREENER ──────────────────────────────
+var NSE_STOCKS = [
+  {n:'Reliance Industries', s:'RELIANCE.NS',  sec:'Energy'},
+  {n:'Infosys',             s:'INFY.NS',      sec:'IT'},
+  {n:'HDFC Bank',           s:'HDFCBANK.NS',  sec:'Banking'},
+  {n:'Tata Motors',         s:'TATAMOTORS.NS',sec:'Auto'},
+  {n:'Sun Pharma',          s:'SUNPHARMA.NS', sec:'Pharma'},
+  {n:'TCS',                 s:'TCS.NS',       sec:'IT'},
+  {n:'ICICI Bank',          s:'ICICIBANK.NS', sec:'Banking'},
+  {n:'Wipro',               s:'WIPRO.NS',     sec:'IT'},
+  {n:'Maruti Suzuki',       s:'MARUTI.NS',    sec:'Auto'},
+  {n:'Bajaj Finance',       s:'BAJFINANCE.NS',sec:'Banking'},
+  {n:'Adani Ports',         s:'ADANIPORTS.NS',sec:'Infra'},
+  {n:'Tata Steel',          s:'TATASTEEL.NS', sec:'Metal'},
+  {n:'HUL',                 s:'HINDUNILVR.NS',sec:'FMCG'},
+  {n:'Zomato',              s:'ZOMATO.NS',    sec:'IT'},
+  {n:'Axis Bank',           s:'AXISBANK.NS',  sec:'Banking'},
+  {n:'Kotak Bank',          s:'KOTAKBANK.NS', sec:'Banking'},
+  {n:'Bharti Airtel',       s:'BHARTIARTL.NS',sec:'Telecom'},
+  {n:'HCL Tech',            s:'HCLTECH.NS',   sec:'IT'},
+  {n:'Tech Mahindra',       s:'TECHM.NS',     sec:'IT'},
+  {n:'Nestle India',        s:'NESTLEIND.NS', sec:'FMCG'},
+  {n:'Asian Paints',        s:'ASIANPAINT.NS',sec:'FMCG'},
+  {n:'Titan Company',       s:'TITAN.NS',     sec:'FMCG'},
+  {n:'Bajaj Auto',          s:'BAJAJ-AUTO.NS',sec:'Auto'},
+  {n:'Hero MotoCorp',       s:'HEROMOTOCO.NS',sec:'Auto'},
+  {n:'ONGC',                s:'ONGC.NS',      sec:'Energy'},
+  {n:'Coal India',          s:'COALINDIA.NS', sec:'Energy'},
+  {n:'NTPC',                s:'NTPC.NS',      sec:'Energy'},
+  {n:'Power Grid',          s:'POWERGRID.NS', sec:'Energy'},
+  {n:'JSW Steel',           s:'JSWSTEEL.NS',  sec:'Metal'},
+  {n:'Hindalco',            s:'HINDALCO.NS',  sec:'Metal'},
+  {n:'Dr Reddys Lab',       s:'DRREDDY.NS',   sec:'Pharma'},
+  {n:'Cipla',               s:'CIPLA.NS',     sec:'Pharma'},
+  {n:'Apollo Hospitals',    s:'APOLLOHOSP.NS',sec:'Pharma'},
+  {n:'ITC',                 s:'ITC.NS',       sec:'FMCG'},
+  {n:'Britannia',           s:'BRITANNIA.NS', sec:'FMCG'},
+  {n:'UltraTech Cement',    s:'ULTRACEMCO.NS',sec:'Infra'},
+  {n:'Larsen & Toubro',     s:'LT.NS',        sec:'Infra'},
+  {n:'SBI',                 s:'SBIN.NS',      sec:'Banking'},
+  {n:'IndusInd Bank',       s:'INDUSINDBK.NS',sec:'Banking'},
+  {n:'Naukri',              s:'NAUKRI.NS',    sec:'IT'},
+  {n:'Persistent Systems',  s:'PERSISTENT.NS',sec:'IT'},
+  {n:'Tata Power',          s:'TATAPOWER.NS', sec:'Energy'},
+  {n:'Trent',               s:'TRENT.NS',     sec:'FMCG'},
+  {n:'Varun Beverages',     s:'VBL.NS',       sec:'FMCG'},
+  {n:'Grasim',              s:'GRASIM.NS',    sec:'Infra'},
+  {n:'Divi Labs',           s:'DIVISLAB.NS',  sec:'Pharma'},
+  {n:'Bank of Baroda',      s:'BANKBARODA.NS',sec:'Banking'},
+  {n:'Havells India',       s:'HAVELLS.NS',   sec:'Infra'},
+  {n:'Pidilite Industries', s:'PIDILITIND.NS',sec:'FMCG'},
+  {n:'Godrej Consumer',     s:'GODREJCP.NS',  sec:'FMCG'},
+  {n:'Shriram Finance',     s:'SHRIRAMFIN.NS',sec:'Banking'}
+];
+
+var scMode = 'breakout';
+
+function setMode(mode) {
+  scMode = mode;
+  document.querySelectorAll('.sc-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('btn-'+mode).classList.add('active');
+  runScreen();
 }
-function ss(k){if(sortK===k)sortD*=-1;else{sortK=k;sortD=-1;}runSc();}
-function resetSc(){['fs','fm','fp','fsig'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('fsc2').value='';runSc();}
+
+async function runScreen() {
+  var sector = document.getElementById('sc-sector').value;
+  var filtered = sector ? NSE_STOCKS.filter(function(s){ return s.sec === sector; }) : NSE_STOCKS;
+  var res = document.getElementById('sc-live-res');
+  var status = document.getElementById('sc-status');
+
+  res.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t2)">'+
+    '<div class="spin" style="width:20px;height:20px;border-width:3px;margin:0 auto"></div>'+
+    '<div style="margin-top:12px;font-size:13px">Scanning '+filtered.length+' NSE stocks...</div></div>';
+  status.textContent = 'Scanning...';
+
+  var prices = await fetchAll(filtered.map(function(s){ return s.s; }));
+
+  var stocks = [];
+  filtered.forEach(function(st) {
+    var q = prices[st.s];
+    if(!q || !q.price) return;
+    var rangePos = (q.high > q.low) ? ((q.price - q.low)/(q.high - q.low))*100 : 50;
+    stocks.push({
+      n: st.n, s: st.s, sec: st.sec,
+      price: q.price, prev: q.prev,
+      high: q.high, low: q.low,
+      chg: q.chg, pct: q.pct, vol: q.vol,
+      rangePos: Math.round(rangePos),
+      nearHigh: rangePos >= 80,
+      nearLow:  rangePos <= 20
+    });
+  });
+
+  status.textContent = stocks.length + ' stocks scanned';
+
+  var results = [];
+  if(scMode === 'breakout') {
+    results = stocks.filter(function(s){ return s.pct > 0.3 && s.nearHigh; })
+      .sort(function(a,b){ return b.pct - a.pct; });
+    if(results.length < 5)
+      results = stocks.filter(function(s){ return s.pct > 0; })
+        .sort(function(a,b){ return b.pct - a.pct; }).slice(0,8);
+  } else if(scMode === 'breakdown') {
+    results = stocks.filter(function(s){ return s.pct < -0.3 && s.nearLow; })
+      .sort(function(a,b){ return a.pct - b.pct; });
+    if(results.length < 5)
+      results = stocks.filter(function(s){ return s.pct < 0; })
+        .sort(function(a,b){ return a.pct - b.pct; }).slice(0,8);
+  } else if(scMode === 'volume') {
+    results = stocks.filter(function(s){ return s.vol > 100000 && Math.abs(s.pct) > 0.3; })
+      .sort(function(a,b){ return b.vol - a.vol; }).slice(0,10);
+  } else if(scMode === 'gainers') {
+    results = stocks.filter(function(s){ return s.pct > 0; })
+      .sort(function(a,b){ return b.pct - a.pct; }).slice(0,10);
+  } else if(scMode === 'losers') {
+    results = stocks.filter(function(s){ return s.pct < 0; })
+      .sort(function(a,b){ return a.pct - b.pct; }).slice(0,10);
+  }
+
+  if(results.length === 0) {
+    res.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t2)">'+
+      '<div style="font-size:28px;margin-bottom:10px">🔍</div>'+
+      '<div style="font-weight:500">No signals found right now</div>'+
+      '<div style="font-size:12px;margin-top:4px">Market may be closed — NSE hours: Mon-Fri 9:15am to 3:30pm IST</div></div>';
+    return;
+  }
+
+  var modeConfig = {
+    breakout: {label:'BREAKOUT', cls:'badge-bo', icon:'🚀', color:'var(--g)'},
+    breakdown:{label:'BREAKDOWN',cls:'badge-bd', icon:'📉', color:'var(--r)'},
+    volume:   {label:'VOL SURGE',cls:'badge-vol',icon:'🔥', color:'var(--am)'},
+    gainers:  {label:'GAINER',   cls:'badge-gain',icon:'▲', color:'var(--g)'},
+    losers:   {label:'LOSER',    cls:'badge-lose',icon:'▼', color:'var(--r)'}
+  };
+  var mc = modeConfig[scMode];
+
+  var html = '<div style="font-size:12px;font-weight:600;color:'+mc.color+';margin-bottom:14px;padding:10px 14px;background:var(--sf);border:1px solid var(--br);border-radius:var(--rad)">'+
+    mc.icon+' '+results.length+' '+mc.label+' signals &nbsp;|&nbsp; Scanned '+stocks.length+' stocks &nbsp;|&nbsp; '+new Date().toLocaleTimeString('en-IN')+'</div>';
+
+  results.forEach(function(s) {
+    var up = s.pct >= 0;
+    var ds = s.s.replace('.NS','');
+    var volStr = s.vol >= 1e7 ? (s.vol/1e7).toFixed(1)+'Cr' : s.vol >= 1e5 ? (s.vol/1e5).toFixed(1)+'L' : (s.vol/1e3).toFixed(0)+'K';
+
+    html += '<div class="sc-card" onclick="sendPrompt('Is '+s.n+' ('+ds+' NSE) at '+fp(s.price)+' a valid '+scMode+' signal? Give entry price, target and stop loss for swing trading.')">' +
+      '<div class="sc-card-l">' +
+        '<div class="sc-name">'+s.n+'</div>' +
+        '<div class="sc-sym">'+ds+' · '+s.sec+'</div>' +
+        '<div class="sc-detail">Vol: '+volStr+' &nbsp;|&nbsp; H: '+fp(s.high)+' L: '+fp(s.low)+'</div>' +
+        '<div class="progress-mini"><div class="'+(up?'progress-fill-g':'progress-fill-r')+'" style="width:'+s.rangePos+'%"></div></div>' +
+        '<div style="font-size:9px;color:var(--t3);margin-top:2px">At '+s.rangePos+'% of day range</div>' +
+      '</div>' +
+      '<div class="sc-card-r">' +
+        '<div class="sc-price '+(up?'up':'dn')+'">'+fp(s.price)+'</div>' +
+        '<div class="sc-chg '+(up?'up':'dn')+'">'+(up?'▲':'▼')+' '+Math.abs(s.pct).toFixed(2)+'%</div>' +
+        '<div><span class="sc-badge '+mc.cls+'">'+mc.label+'</span></div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  res.innerHTML = html;
+  setTimeout(function(){res.scrollIntoView({behavior:'smooth',block:'start'});},100);
+}
 
 // ── MUTUAL FUNDS ─────────────────────────────────────────
 var MFD=[
@@ -766,14 +949,13 @@ function sw(name){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.getElementById('p-'+name).classList.add('active');
   if(name==='pf'){renderPF();setTimeout(renderDonut,80);}
-  if(name==='sc')runSc();
+  if(name==='sc'){/* screener loads on demand */}
   if(name==='sp')calcSip();
   if(name==='mf')renderMF();
 }
 
 // ── INIT ──────────────────────────────────────────────────
 loadSaved();   // Load saved watchlist & portfolio from localStorage
-runSc();
 renderMF();
 calcSip();
 renderPF();

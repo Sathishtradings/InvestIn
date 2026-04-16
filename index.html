@@ -425,38 +425,68 @@ function sym(s){ return s.replace('.NS','').replace('.BO',''); }
 // ── FAST PARALLEL FETCH via Yahoo Finance ─────────────────
 // Uses allorigins proxy — works from GitHub Pages
 // All stocks fetched simultaneously using Promise.all
-var PROXY = 'https://api.allorigins.win/raw?url=';
-var YF    = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+// Multiple CORS proxies — tries each one until one works
+var PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://proxy.cors.sh/',
+  'https://thingproxy.freeboard.io/fetch/'
+];
+var YF = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
+function parseYFResponse(json) {
+  var res = json && json.chart && json.chart.result && json.chart.result[0];
+  if(!res) return null;
+  var m = res.meta;
+  var price = m.regularMarketPrice;
+  if(!price) return null;
+  var prev = m.previousClose || m.chartPreviousClose || price;
+  var chg  = price - prev;
+  return {
+    price: price,
+    prev:  prev,
+    open:  m.regularMarketOpen || prev,
+    high:  m.regularMarketDayHigh || price,
+    low:   m.regularMarketDayLow  || price,
+    chg:   chg,
+    pct:   prev > 0 ? (chg/prev)*100 : 0,
+    vol:   m.regularMarketVolume || 0
+  };
+}
+
+function tryProxy(ticker, proxyIdx) {
+  if(proxyIdx >= PROXIES.length) return Promise.resolve(null);
+  var yfUrl = YF + ticker + '?interval=1d&range=1d&includePrePost=false';
+  var url = PROXIES[proxyIdx] + encodeURIComponent(yfUrl);
+  // 8 second timeout per proxy attempt
+  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var timer = controller ? setTimeout(function(){ controller.abort(); }, 8000) : null;
+  var opts = controller ? {signal: controller.signal, headers:{'X-Requested-With':'XMLHttpRequest'}} : {headers:{'X-Requested-With':'XMLHttpRequest'}};
+  return fetch(url, opts)
+    .then(function(r) {
+      if(timer) clearTimeout(timer);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(function(json) {
+      var obj = parseYFResponse(json);
+      if(!obj) throw new Error('No data');
+      return obj;
+    })
+    .catch(function() {
+      // Try next proxy
+      return tryProxy(ticker, proxyIdx + 1);
+    });
+}
 
 function fetchOne(ticker) {
-  // Check cache first (90 second TTL)
   if(priceCache[ticker] && Date.now()-priceCache[ticker].ts < 90000) {
     return Promise.resolve(priceCache[ticker].d);
   }
-  var url = PROXY + encodeURIComponent(YF + ticker + '?interval=1d&range=1d');
-  return fetch(url)
-    .then(function(r){ return r.json(); })
-    .then(function(json){
-      var res = json && json.chart && json.chart.result && json.chart.result[0];
-      if(!res) return null;
-      var m = res.meta;
-      var price = m.regularMarketPrice;
-      var prev  = m.previousClose || m.chartPreviousClose || price;
-      var chg   = price - prev;
-      var obj = {
-        price: price,
-        prev:  prev,
-        open:  m.regularMarketOpen || prev,
-        high:  m.regularMarketDayHigh || price,
-        low:   m.regularMarketDayLow  || price,
-        chg:   chg,
-        pct:   prev > 0 ? (chg/prev)*100 : 0,
-        vol:   m.regularMarketVolume || 0
-      };
-      priceCache[ticker] = {d:obj, ts:Date.now()};
-      return obj;
-    })
-    .catch(function(){ return null; });
+  return tryProxy(ticker, 0).then(function(obj) {
+    if(obj) priceCache[ticker] = {d:obj, ts:Date.now()};
+    return obj;
+  });
 }
 
 // Fetch ALL symbols in parallel — no waiting between calls
@@ -502,6 +532,7 @@ function refreshAll() {
       renderPF(); setTimeout(renderDonut,80);
     }
     document.getElementById('upd').textContent = 'Updated '+new Date().toLocaleTimeString('en-IN');
+    if(Object.keys(prices).length===0){document.getElementById('upd').textContent='API unavailable — market closed?';}
   });
 }
 
@@ -523,8 +554,9 @@ function renderWL(prices) {
           '<div><div class="wn">'+w.n+'</div><div class="wt">'+ds+' NSE</div></div>'+
           '<span class="tag t'+w.sig.toLowerCase()+'">'+w.sig+'</span>'+
         '</div>'+
-        '<div style="margin-top:10px"><span class="ebadge">Market closed</span></div>'+
-        '<button onclick="removeWatch('+wi+')" style="margin-top:8px;font-size:10px;color:var(--r);background:none;border:none;cursor:pointer;padding:0">Remove</button>'+
+        '<div style="margin-top:8px"><span class="ebadge">Price unavailable</span></div>'+
+        '<div class="wx" style="margin-top:4px">NSE hours: Mon-Fri 9:15am-3:30pm IST</div>'+
+        '<button onclick="removeWatch('+wi+')" style="margin-top:6px;font-size:10px;color:var(--t3);background:none;border:none;cursor:pointer;padding:0">Remove</button>'+
       '</div>';
     }
     var up=q.pct>=0;

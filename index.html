@@ -159,6 +159,7 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
 .win{background:var(--gl);color:var(--gd);font-weight:700;border-radius:4px;padding:1px 5px}
 .star{color:var(--am)}
 .saved-badge{background:#E6F1FB;color:#185FA5;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+@keyframes spin2{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -380,24 +381,98 @@ function doScan(mode) {
   currentMode = mode;
   var res = document.getElementById('sc-results');
 
-  // Show loading
   res.innerHTML = '<div class="empty-state">'+
-    '<div class="empty-icon">🔍</div>'+
-    '<div class="empty-title">Scanning NSE stocks...</div>'+
-    '<div class="empty-sub">Analysing price action, volume and momentum<br>for top '+mode+' signals</div>'+
+    '<div class="empty-icon" style="animation:spin2 1s linear infinite;display:inline-block">🔍</div>'+
+    '<div class="empty-title" style="margin-top:10px">Getting live signals from AI...</div>'+
+    '<div class="empty-sub">Fetching current NSE prices + technical analysis</div>'+
   '</div>';
 
-  // Simulate scan delay for UX, then show results
-  setTimeout(function() {
-    currentSignals = mode === 'intraday' ? SAMPLE_INTRADAY : SAMPLE_SWING;
+  var today = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var prompt = 'Today is '+today+'. Give me top 5 BUY signals and top 5 SELL signals for NSE stocks for '+mode+' trading RIGHT NOW using current market prices. For EACH stock provide EXACTLY in this format:
+
+TYPE: BUY or SELL
+NAME: Company name
+SYMBOL: NSE symbol
+CMP: Current market price (today actual price)
+ENTRY: Entry price
+TARGET: Target price
+SL: Stop loss price
+RR: Risk reward ratio
+REASON: 1-2 line technical reason
+CONFIDENCE: High or Medium
+
+Separate each stock with ---
+Give real current prices for today '+today+'. Focus on Nifty 50 and Nifty Next 50 stocks.';
+
+  // Call Claude API to get live signals
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{type:'web_search_20250305', name:'web_search'}],
+      messages: [{role:'user', content: prompt}]
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    // Extract text from response
+    var text = '';
+    if(data.content) {
+      data.content.forEach(function(block) {
+        if(block.type === 'text') text += block.text;
+      });
+    }
+    if(!text) { showSampleSignals(mode); return; }
+    var signals = parseAISignals(text);
+    if(!signals || signals.length < 4) { showSampleSignals(mode); return; }
+    currentSignals = signals;
     currentFilter = 'all';
     updatePills('all');
     renderSignals(currentSignals, mode);
     saveSignals(mode, currentSignals);
+  })
+  .catch(function() {
+    showSampleSignals(mode);
+  });
+}
 
-    // Prompt AI for fresh signals in chat
-    sendPrompt('Give me top 5 BUY signals and top 5 SELL signals for NSE stocks for '+mode+' trading today. For each stock give: Stock name, NSE symbol, Entry price, Target price, Stop loss, Risk:Reward ratio, and brief technical reason. Format clearly with BUY and SELL sections.');
-  }, 1200);
+function parseAISignals(text) {
+  var signals = [];
+  var blocks = text.split('---');
+  blocks.forEach(function(block) {
+    block = block.trim();
+    if(!block) return;
+    var sig = {};
+    var lines = block.split('\n');
+    lines.forEach(function(line) {
+      line = line.trim();
+      if(line.startsWith('TYPE:'))       sig.type       = line.replace('TYPE:','').trim().toUpperCase();
+      if(line.startsWith('NAME:'))       sig.name       = line.replace('NAME:','').trim();
+      if(line.startsWith('SYMBOL:'))     sig.sym        = line.replace('SYMBOL:','').trim().replace('.NS','');
+      if(line.startsWith('CMP:'))        sig.cmp        = line.replace('CMP:','').trim().replace('Rs','').replace('₹','').trim();
+      if(line.startsWith('ENTRY:'))      sig.entry      = line.replace('ENTRY:','').trim().replace('Rs','').replace('₹','').trim();
+      if(line.startsWith('TARGET:'))     sig.target     = line.replace('TARGET:','').trim().replace('Rs','').replace('₹','').trim();
+      if(line.startsWith('SL:'))         sig.sl         = line.replace('SL:','').trim().replace('Rs','').replace('₹','').trim();
+      if(line.startsWith('RR:'))         sig.rr         = line.replace('RR:','').trim();
+      if(line.startsWith('REASON:'))     sig.reason     = line.replace('REASON:','').trim();
+      if(line.startsWith('CONFIDENCE:')) sig.confidence = line.replace('CONFIDENCE:','').trim();
+    });
+    if(sig.type && sig.name && sig.entry) {
+      sig.sector = sig.sector || 'NSE';
+      signals.push(sig);
+    }
+  });
+  return signals;
+}
+
+function showSampleSignals(mode) {
+  currentSignals = mode === 'intraday' ? SAMPLE_INTRADAY : SAMPLE_SWING;
+  currentFilter = 'all';
+  updatePills('all');
+  renderSignals(currentSignals, mode);
+  saveSignals(mode, currentSignals);
 }
 
 function filterSignals(type) {
@@ -457,6 +532,7 @@ function buildCard(s) {
         '<div style="font-size:10px;margin-top:4px;color:'+confColor+'">● '+s.confidence+' confidence</div>'+
       '</div>'+
     '</div>'+
+    (s.cmp ? '<div style="font-size:12px;color:var(--t2);margin-bottom:8px">CMP: <span style="font-family:var(--mo);font-weight:700;color:var(--t);font-size:14px">₹'+s.cmp+'</span></div>' : '')+
     '<div class="sig-levels">'+
       '<div class="sig-level"><div class="sig-level-lbl">Entry</div><div class="sig-level-val entry-val">₹'+s.entry+'</div></div>'+
       '<div class="sig-level"><div class="sig-level-lbl">Target</div><div class="sig-level-val target-val">₹'+s.target+'</div></div>'+

@@ -160,6 +160,7 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
 .star{color:var(--am)}
 .saved-badge{background:#E6F1FB;color:#185FA5;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
 @keyframes spin2{to{transform:rotate(360deg)}}
+@keyframes load{0%,100%{opacity:.3;transform:scaleX(.5)}50%{opacity:1;transform:scaleX(1)}}
 </style>
 </head>
 <body>
@@ -228,7 +229,7 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
     </div>
     <div class="sec-title" style="margin-bottom:12px">Select up to 3 funds to compare</div>
     <div class="mfgrid" id="mf-grid"></div>
-    <button class="bai" onclick="sendPrompt('Help me pick best mutual funds for 10-year SIP with moderate risk. Suggest 3 funds with justification.')">Find funds for my goals ↗</button>
+    <button class="bai" onclick="openAI('Help me pick best mutual funds for 10-year SIP with moderate risk. Suggest 3 funds with justification.')">Find funds for my goals ↗</button>
   </div>
   <div id="mf-cp" style="display:none">
     <button style="padding:7px 12px;border-radius:var(--rad);border:1px solid var(--br);color:var(--t2);background:#fff;font-size:12px;cursor:pointer;font-family:var(--fn);margin-bottom:14px" onclick="mfsub('br')">Back to browse</button>
@@ -264,8 +265,8 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
         <div id="al-bars"></div>
       </div>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-        <button class="bai" onclick="sendPrompt('Analyze my portfolio allocation and suggest how to rebalance it for better diversification.')">Rebalance advice ↗</button>
-        <button class="bai" onclick="sendPrompt('Explain STCG vs LTCG tax on Indian equities and how to minimize tax FY2024-25.')">Tax report ↗</button>
+        <button class="bai" onclick="openAI('Analyze my portfolio allocation and suggest how to rebalance it for better diversification.')">Rebalance advice ↗</button>
+        <button class="bai" onclick="openAI('Explain STCG vs LTCG tax on Indian equities and how to minimize tax FY2024-25.')">Tax report ↗</button>
       </div>
     </div>
   </div>
@@ -299,6 +300,24 @@ body{font-family:var(--fn);background:var(--bg);color:var(--t);font-size:14px}
 </div>
 
 </div><!-- /content -->
+
+<!-- AI PROMPT MODAL -->
+<div id="ai-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:600px;border-radius:16px 16px 0 0;padding:20px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:600;color:#1A1A2E">Ask AI for Signals</div>
+      <button onclick="closeModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6B7280;padding:4px">✕</button>
+    </div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:10px">Copy this prompt and paste it in Claude chat for live NSE signals with current prices:</div>
+    <textarea id="ai-prompt-text" readonly style="width:100%;height:160px;padding:12px;border:1px solid rgba(0,0,0,.1);border-radius:10px;font-size:12px;font-family:'DM Sans',sans-serif;color:#1A1A2E;background:#F7F8FA;resize:none;line-height:1.5"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button id="copy-btn" onclick="copyPrompt()" style="flex:1;padding:12px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Copy Prompt</button>
+      <button onclick="closeModal()" style="padding:12px 16px;background:#F7F8FA;color:#6B7280;border:1px solid rgba(0,0,0,.1);border-radius:10px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif">Close</button>
+    </div>
+    <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:10px">Paste in the Claude chat box below → get live prices + signals</div>
+  </div>
+</div>
+
 </div><!-- /app -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -332,7 +351,7 @@ function loadSignals() {
 
 // ── SAMPLE SIGNALS DATA ───────────────────────────────────
 // These are example signals shown after AI scan
-// Real signals come from AI via sendPrompt
+// Real signals come from AI via openAI
 var SAMPLE_INTRADAY = [
   {type:'BUY', name:'Infosys', sym:'INFY', entry:'1,342', target:'1,368', sl:'1,325', rr:'1:1.5', sector:'IT', reason:'Opening gap up with volume surge. RSI crossing 60. Strong support at 1,325. IT sector momentum bullish today.', confidence:'High'},
   {type:'BUY', name:'ICICI Bank', sym:'ICICIBANK', entry:'1,198', target:'1,218', sl:'1,185', rr:'1:1.5', sector:'Banking', reason:'Break above yesterday\'s high with heavy buying. Bank Nifty leading gains. Short-term momentum positive.', confidence:'High'},
@@ -380,63 +399,125 @@ var SCOLS = {IT:'#1D9E75',Banking:'#378ADD',Auto:'#EF9F27',Energy:'#D85A30',Phar
 function doScan(mode) {
   currentMode = mode;
   var res = document.getElementById('sc-results');
+  document.getElementById('filter-row').style.display = 'flex';
 
-  res.innerHTML = '<div class="empty-state">'+
-    '<div class="empty-icon" style="animation:spin2 1s linear infinite;display:inline-block">🔍</div>'+
-    '<div class="empty-title" style="margin-top:10px">Getting live signals from AI...</div>'+
-    '<div class="empty-sub">Fetching current NSE prices + technical analysis</div>'+
+  res.innerHTML = '<div style="text-align:center;padding:30px;color:#6B7280">'+
+    '<div style="font-size:32px;margin-bottom:12px">'+(mode==='intraday'?'⚡':'📈')+'</div>'+
+    '<div style="font-size:14px;font-weight:600;color:#1A1A2E;margin-bottom:6px">Scanning NSE stocks...</div>'+
+    '<div style="font-size:12px">Fetching live prices from NSE India</div>'+
+    '<div style="width:40px;height:4px;background:#1D9E75;border-radius:2px;margin:16px auto;animation:load 1.2s ease-in-out infinite"></div>'+
   '</div>';
 
-  var today = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  var prompt = 'Today is '+today+'. Give me top 5 BUY signals and top 5 SELL signals for NSE stocks for '+mode+' trading RIGHT NOW using current market prices. For EACH stock provide EXACTLY in this format:
+  // Fetch top gainers AND losers simultaneously
+  Promise.all([fetchScan('gainers'), fetchScan('losers'), fetchIndices()])
+    .then(function(results) {
+      var gainers = results[0];
+      var losers  = results[1];
+      var indices = results[2];
 
-TYPE: BUY or SELL
-NAME: Company name
-SYMBOL: NSE symbol
-CMP: Current market price (today actual price)
-ENTRY: Entry price
-TARGET: Target price
-SL: Stop loss price
-RR: Risk reward ratio
-REASON: 1-2 line technical reason
-CONFIDENCE: High or Medium
+      // Update index bar
+      updateIndexBar(indices);
 
-Separate each stock with ---
-Give real current prices for today '+today+'. Focus on Nifty 50 and Nifty Next 50 stocks.';
+      if(gainers.length === 0 && losers.length === 0) {
+        showMarketClosed(mode);
+        return;
+      }
 
-  // Call Claude API to get live signals
-  fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      tools: [{type:'web_search_20250305', name:'web_search'}],
-      messages: [{role:'user', content: prompt}]
-    })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data) {
-    // Extract text from response
-    var text = '';
-    if(data.content) {
-      data.content.forEach(function(block) {
-        if(block.type === 'text') text += block.text;
+      // Build signals from gainers (BUY) and losers (SELL)
+      var signals = [];
+
+      // Top 5 gainers = BUY signals
+      gainers.slice(0,5).forEach(function(s) {
+        var price = s.price || 0;
+        var pct   = parseFloat(s.pct) || 0;
+        // Calculate targets based on momentum
+        var targetMult = mode==='intraday' ? 0.015 : 0.04;
+        var slMult     = mode==='intraday' ? 0.008 : 0.025;
+        signals.push({
+          type: 'BUY',
+          name: s.name || s.symbol,
+          sym:  s.symbol,
+          cmp:  price.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          entry: price.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          target: (price*(1+targetMult)).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          sl:    (price*(1-slMult)).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          rr:   '1:'+(targetMult/slMult).toFixed(1),
+          sector: 'NSE',
+          reason: 'Top gainer +'+Math.abs(pct).toFixed(2)+'% with volume surge. '+(mode==='intraday'?'Momentum continuation play. Enter on dips.':'Breakout candidate — hold for '+Math.round(targetMult*100)+'% target.'),
+          confidence: pct > 3 ? 'High' : 'Medium'
+        });
       });
-    }
-    if(!text) { showSampleSignals(mode); return; }
-    var signals = parseAISignals(text);
-    if(!signals || signals.length < 4) { showSampleSignals(mode); return; }
-    currentSignals = signals;
-    currentFilter = 'all';
-    updatePills('all');
-    renderSignals(currentSignals, mode);
-    saveSignals(mode, currentSignals);
-  })
-  .catch(function() {
-    showSampleSignals(mode);
+
+      // Top 5 losers = SELL signals
+      losers.slice(0,5).forEach(function(s) {
+        var price = s.price || 0;
+        var pct   = parseFloat(s.pct) || 0;
+        var targetMult = mode==='intraday' ? 0.015 : 0.04;
+        var slMult     = mode==='intraday' ? 0.008 : 0.025;
+        signals.push({
+          type: 'SELL',
+          name: s.name || s.symbol,
+          sym:  s.symbol,
+          cmp:  price.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          entry: price.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          target: (price*(1-targetMult)).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          sl:    (price*(1+slMult)).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+          rr:   '1:'+(targetMult/slMult).toFixed(1),
+          sector: 'NSE',
+          reason: 'Top loser '+Math.abs(pct).toFixed(2)+'% down with heavy selling. '+(mode==='intraday'?'Short on bounces near current price.':'Downtrend likely to continue — target '+Math.round(targetMult*100)+'% lower.'),
+          confidence: Math.abs(pct) > 3 ? 'High' : 'Medium'
+        });
+      });
+
+      currentSignals = signals;
+      currentFilter  = 'all';
+      updatePills('all');
+      renderSignals(signals, mode);
+      saveSignals(mode, signals);
+    })
+    .catch(function() {
+      showMarketClosed(mode);
+    });
+}
+
+function showMarketClosed(mode) {
+  var res = document.getElementById('sc-results');
+  res.innerHTML =
+    '<div style="text-align:center;padding:30px;background:#FFF9F0;border:1px solid #FAEEDA;border-radius:14px">' +
+      '<div style="font-size:36px;margin-bottom:12px">🕐</div>' +
+      '<div style="font-size:15px;font-weight:600;color:#1A1A2E;margin-bottom:6px">Market Closed or Backend Starting</div>' +
+      '<div style="font-size:12px;color:#6B7280;line-height:1.6">NSE hours: Mon–Fri 9:15am – 3:30pm IST<br>Backend may take 30-60 sec to start (free tier)<br><br>' +
+      '<button onclick="doScan(''+mode+'')" style="padding:10px 20px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Try Again</button></div>' +
+    '</div>';
+}
+
+function updateIndexBar(indices) {
+  var map = {
+    'NIFTY 50':   {vi:'i0',ci:'ic0'},
+    'NIFTY BANK': {vi:'i2',ci:'ic2'},
+    'NIFTY IT':   {vi:'i3',ci:'ic3'},
+  };
+  Object.keys(map).forEach(function(name) {
+    var d = indices[name];
+    var ids = map[name];
+    if(!d || !document.getElementById(ids.vi)) return;
+    document.getElementById(ids.vi).textContent = '₹'+parseFloat(d.price).toLocaleString('en-IN',{maximumFractionDigits:0});
+    var el = document.getElementById(ids.ci);
+    el.textContent = (d.pct>=0?'+':'')+parseFloat(d.pct).toFixed(2)+'%';
+    el.className = 'ic '+(d.pct>=0?'up':'dn');
   });
 }
+
+
+function buildSampleCards(mode) {
+  var samples = mode === 'intraday' ? SAMPLE_INTRADAY : SAMPLE_SWING;
+  var html = '<div style="font-size:11px;color:var(--r);background:var(--rl);padding:6px 10px;border-radius:6px;margin-bottom:12px">⚠️ Sample prices only — see chat for live AI signals</div>';
+  html += '<div class="signals-wrap">';
+  samples.slice(0,5).forEach(function(s){ html += buildCard(s); });
+  html += '</div>';
+  return html;
+}
+
 
 function parseAISignals(text) {
   var signals = [];
@@ -478,9 +559,11 @@ function showSampleSignals(mode) {
 function filterSignals(type) {
   currentFilter = type;
   updatePills(type);
-  var filtered = type === 'all' ? currentSignals :
-    currentSignals.filter(function(s){ return s.type === type.toUpperCase(); });
-  renderSignals(filtered, currentMode);
+  var source = currentSignals.length > 0 ? currentSignals :
+    (currentMode === 'intraday' ? SAMPLE_INTRADAY : SAMPLE_SWING);
+  var filtered = type === 'all' ? source :
+    source.filter(function(s){ return s.type === type.toUpperCase(); });
+  if(currentMode) renderSignals(filtered, currentMode);
 }
 
 function updatePills(type) {
@@ -543,7 +626,7 @@ function buildCard(s) {
       '<div class="sig-meta-item">Risk:Reward &nbsp;<span>'+s.rr+'</span></div>'+
       '<div class="sig-meta-item">Sector &nbsp;<span>'+s.sector+'</span></div>'+
     '</div>'+
-    '<button class="sig-ask-btn" onclick="sendPrompt(\'Give me detailed technical analysis for '+s.name+' ('+s.sym+' NSE) as a '+s.type+' trade. Is entry at ₹'+s.entry+', target ₹'+s.target+', stop loss ₹'+s.sl+' valid right now? What is the chart pattern and volume confirmation?\')">Ask AI for full analysis ↗</button>'+
+    '<button class="sig-ask-btn" onclick="openAI(\'Give me detailed technical analysis for '+s.name+' ('+s.sym+' NSE) as a '+s.type+' trade. Is entry at ₹'+s.entry+', target ₹'+s.target+', stop loss ₹'+s.sl+' valid right now? What is the chart pattern and volume confirmation?\')">Ask AI for full analysis ↗</button>'+
   '</div>';
 }
 
@@ -656,7 +739,7 @@ function renderCmp(){
   var r1w=best('r1'),r3w=best('r3'),r5w=best('r5'),sw=best('sharpe'),aw=best('alpha'),bw=best('beta',true),sdw=best('sd',true);
   var rows=[['Category',funds.map(function(f){return f.cat;}),''],['Risk',funds.map(function(f){return f.risk;}),''],['NAV',funds.map(function(f){return 'Rs '+f.nav;}),''],['1Y Return',funds.map(function(f){return f.r1+'%';}),r1w],['3Y Return',funds.map(function(f){return f.r3+'%';}),r3w],['5Y Return',funds.map(function(f){return f.r5+'%';}),r5w],['Sharpe',funds.map(function(f){return f.sharpe;}),sw],['Alpha',funds.map(function(f){return f.alpha+'%';}),aw],['Beta',funds.map(function(f){return f.beta;}),bw],['Std Dev',funds.map(function(f){return f.sd+'%';}),sdw],['Min SIP',funds.map(function(f){return 'Rs '+f.sip;}),'']];
   document.getElementById('mf-cpo').innerHTML='<div class="card"><div style="overflow-x:auto"><table class="ctbl"><thead><tr><th>Metric</th>'+funds.map(function(f){return '<th>'+f.n.split(' Direct')[0]+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(row){return '<tr><td style="color:var(--t2)">'+row[0]+'</td>'+row[1].map(function(v,i){var w=Array.isArray(row[2])&&row[2][i]?'win':'';return '<td>'+(w?'<span class="'+w+'">'+v+'</span>':v)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div><div style="font-size:11px;color:var(--t2);margin-top:8px">Green = best in class</div></div>'+
-    '<button class="bai" onclick="sendPrompt(\'Compare and recommend best for 10-year SIP: '+funds.map(function(f){return f.n;}).join(', ')+'\')">AI analysis ↗</button>';
+    '<button class="bai" onclick="openAI(\'Compare and recommend best for 10-year SIP: '+funds.map(function(f){return f.n;}).join(', ')+'\')">AI analysis ↗</button>';
 }
 
 // ── SIP CALCULATOR ────────────────────────────────────────
@@ -682,7 +765,7 @@ function calcSip(){
   document.getElementById('sc4').textContent=parseFloat(document.getElementById('s3').value).toFixed(1)+'%';
   document.getElementById('sc5').textContent=(corpus/inv).toFixed(1)+'x';
   var P2=P,n2=n;
-  document.getElementById('sip-ai-btn').onclick=function(){sendPrompt('Best 3 mutual funds for SIP of Rs '+P2.toLocaleString('en-IN')+' per month for '+n2+' years. Justify each.');};
+  document.getElementById('sip-ai-btn').onclick=function(){openAI('Best 3 mutual funds for SIP of Rs '+P2.toLocaleString('en-IN')+' per month for '+n2+' years. Justify each.');};
   var el=document.getElementById('sc6');if(!el)return;
   if(sipC){sipC.destroy();sipC=null;}
   var labs=[];for(var i=1;i<=n;i++)labs.push('Yr'+i);
@@ -698,6 +781,64 @@ function sw(name){
   if(name==='pf'){renderPF();setTimeout(renderDonut,80);}
   if(name==='sp')calcSip();
   if(name==='mf')renderMF();
+}
+
+// ── BACKEND API ──────────────────────────────────────────
+// Change this URL after deploying to Render.com
+var API_BASE = 'https://investin-api.onrender.com';
+
+var priceCache = {};
+
+function fetchPrices(symbols) {
+  var syms = symbols.join(',');
+  var key = syms;
+  if(priceCache[key] && Date.now()-priceCache[key].ts < 60000)
+    return Promise.resolve(priceCache[key].data);
+  return fetch(API_BASE+'/quotes/'+syms)
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(j.status==='ok'){
+        priceCache[key]={data:j.data, ts:Date.now()};
+        return j.data;
+      }
+      return {};
+    })
+    .catch(function(){ return {}; });
+}
+
+function fetchIndices() {
+  return fetch(API_BASE+'/indices')
+    .then(function(r){ return r.json(); })
+    .then(function(j){ return j.status==='ok' ? j.data : {}; })
+    .catch(function(){ return {}; });
+}
+
+function fetchScan(mode) {
+  var endpoint = mode==='gainers' ? 'gainers' : 'losers';
+  return fetch(API_BASE+'/scan/'+endpoint)
+    .then(function(r){ return r.json(); })
+    .then(function(j){ return j.status==='ok' ? j.data : []; })
+    .catch(function(){ return []; });
+}
+
+// ── openAI helper ────────────────────────────────────────
+function openAI(prompt) {
+  // Show modal with copyable prompt + link to Claude
+  var modal = document.getElementById('ai-modal');
+  document.getElementById('ai-prompt-text').value = prompt;
+  modal.style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('ai-modal').style.display = 'none';
+}
+function copyPrompt() {
+  var ta = document.getElementById('ai-prompt-text');
+  ta.select();
+  try {
+    document.execCommand('copy');
+    document.getElementById('copy-btn').textContent = 'Copied!';
+    setTimeout(function(){ document.getElementById('copy-btn').textContent = 'Copy Prompt'; }, 2000);
+  } catch(e) {}
 }
 
 // ── INIT ──────────────────────────────────────────────────

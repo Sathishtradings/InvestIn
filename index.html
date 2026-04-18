@@ -352,31 +352,9 @@ function loadSignals() {
 // ── SAMPLE SIGNALS DATA ───────────────────────────────────
 // These are example signals shown after AI scan
 // Real signals come from AI via openAI
-var SAMPLE_INTRADAY = [
-  {type:'BUY', name:'Infosys', sym:'INFY', entry:'1,342', target:'1,368', sl:'1,325', rr:'1:1.5', sector:'IT', reason:'Opening gap up with volume surge. RSI crossing 60. Strong support at 1,325. IT sector momentum bullish today.', confidence:'High'},
-  {type:'BUY', name:'ICICI Bank', sym:'ICICIBANK', entry:'1,198', target:'1,218', sl:'1,185', rr:'1:1.5', sector:'Banking', reason:'Break above yesterday\'s high with heavy buying. Bank Nifty leading gains. Short-term momentum positive.', confidence:'High'},
-  {type:'BUY', name:'Tata Motors', sym:'TATAMOTORS', entry:'758', target:'775', sl:'748', rr:'1:1.7', sector:'Auto', reason:'EV volume data positive. Price reclaiming 20-day EMA. Auto index showing strength. Stop below morning low.', confidence:'Medium'},
-  {type:'BUY', name:'Coal India', sym:'COALINDIA', entry:'462', target:'472', sl:'455', rr:'1:1.4', sector:'Energy', reason:'Dividend play + PSU rally. Holding key support. High volume accumulation seen in morning session.', confidence:'Medium'},
-  {type:'BUY', name:'Sun Pharma', sym:'SUNPHARMA', entry:'1,695', target:'1,725', sl:'1,675', rr:'1:1.5', sector:'Pharma', reason:'Pharma sector outperforming. Price near breakout level. Low beta — safe intraday play with good R:R.', confidence:'Medium'},
-  {type:'SELL', name:'Paytm', sym:'PAYTM', entry:'375', target:'358', sl:'386', rr:'1:1.5', sector:'Fintech', reason:'Continued regulatory pressure. Bearish gap down. Below all major EMAs. Sell on any bounce near 375-378.', confidence:'High'},
-  {type:'SELL', name:'Zomato', sym:'ZOMATO', entry:'218', target:'208', sl:'225', rr:'1:1.4', sector:'IT', reason:'Profit booking after recent rally. RSI overbought at 72. Distribution pattern on 15-min chart visible.', confidence:'Medium'},
-  {type:'SELL', name:'Adani Enterprises', sym:'ADANIENT', entry:'2,840', target:'2,785', sl:'2,878', rr:'1:1.4', sector:'Infra', reason:'FII selling in Adani group. Below 50-day EMA. Bearish engulfing on daily. Weak market breadth.', confidence:'Medium'},
-  {type:'SELL', name:'HDFC Life', sym:'HDFCLIFE', entry:'612', target:'596', sl:'622', rr:'1:1.6', sector:'Insurance', reason:'Insurance sector weak. Rate sensitivity. Below 200-day EMA. Short positions building up in F&O data.', confidence:'Medium'},
-  {type:'SELL', name:'Naukri', sym:'NAUKRI', entry:'5,820', target:'5,680', sl:'5,920', rr:'1:1.4', sector:'IT', reason:'IT hiring slowdown narrative. Expensive valuation. Volume declining on up moves — classic distribution.', confidence:'Medium'}
-];
+var SAMPLE_INTRADAY = [];
 
-var SAMPLE_SWING = [
-  {type:'BUY', name:'Reliance Industries', sym:'RELIANCE', entry:'2,820', target:'2,980', sl:'2,745', rr:'1:2.1', sector:'Energy', reason:'Bullish cup-and-handle forming on weekly chart. Jio AGR resolution positive. Above all EMAs. Strong institutional buying at dips. Target aligns with previous ATH.', confidence:'High'},
-  {type:'BUY', name:'TCS', sym:'TCS', entry:'3,820', target:'4,050', sl:'3,700', rr:'1:1.9', sector:'IT', reason:'Q4 results beat estimates. Deal wins pipeline strong. IT sector rotation beginning. Weekly RSI bullish divergence. 3-5 day swing opportunity.', confidence:'High'},
-  {type:'BUY', name:'Bajaj Finance', sym:'BAJFINANCE', entry:'6,850', target:'7,200', sl:'6,650', rr:'1:1.75', sector:'Banking', reason:'NBFC sector recovery play. Strong AUM growth. Price coiling near 52-week high. Volume expanding on breakout attempt.', confidence:'High'},
-  {type:'BUY', name:'Apollo Hospitals', sym:'APOLLOHOSP', entry:'6,420', target:'6,750', sl:'6,250', rr:'1:1.9', sector:'Pharma', reason:'Healthcare sector defensive + growth. New hospital additions driving revenue. Chart shows higher lows pattern. Good R:R for 5-7 day swing.', confidence:'Medium'},
-  {type:'BUY', name:'UltraTech Cement', sym:'ULTRACEMCO', entry:'10,850', target:'11,400', sl:'10,550', rr:'1:1.8', sector:'Infra', reason:'Infrastructure capex story intact. Capacity expansion news. Breaking out of 6-week consolidation. Cement sector seasonal strength.', confidence:'Medium'},
-  {type:'SELL', name:'Paytm', sym:'PAYTM', entry:'378', target:'320', sl:'410', rr:'1:1.8', sector:'Fintech', reason:'Multi-week downtrend intact. Below 200-day EMA. Bearish weekly candle patterns. Fintech regulatory risk ongoing. Target at previous support zone.', confidence:'High'},
-  {type:'SELL', name:'Zomato', sym:'ZOMATO', entry:'215', target:'188', sl:'230', rr:'1:1.8', sector:'IT', reason:'Post-rally exhaustion. Negative divergence on weekly RSI. High PE with slowing growth. Smart money distributing. 7-10 day short opportunity.', confidence:'Medium'},
-  {type:'SELL', name:'Vodafone Idea', sym:'IDEA', entry:'13.5', target:'11.2', sl:'15.0', rr:'1:1.5', sector:'Telecom', reason:'Debt-laden balance sheet. Subscriber loss continuing. AGR dues unresolved. Classic value trap. Avoid and short on bounces.', confidence:'High'},
-  {type:'SELL', name:'IndusInd Bank', sym:'INDUSINDBK', entry:'1,015', target:'955', sl:'1,048', rr:'1:1.8', sector:'Banking', reason:'NIM compression concerns. Management guidance below consensus. Below 50-day EMA. Underperforming sector peers significantly.', confidence:'Medium'},
-  {type:'SELL', name:'HDFC Life', sym:'HDFCLIFE', entry:'610', target:'568', sl:'632', rr:'1:1.9', sector:'Insurance', reason:'Rate cycle headwind. Premium growth slowing. Breakdown from 3-month consolidation. Bearish crossover on MACD weekly.', confidence:'Medium'}
-];
+var SAMPLE_SWING = [];
 
 var currentSignals = [];
 var currentFilter = 'all';
@@ -785,7 +763,7 @@ function sw(name){
 
 // ── BACKEND API ──────────────────────────────────────────
 // Change this URL after deploying to Render.com
-var API_BASE = 'https://investin-api.onrender.com';
+var API_BASE = 'https://investin-backend.onrender.com';
 
 var priceCache = {};
 

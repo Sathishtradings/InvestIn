@@ -353,53 +353,47 @@ function doScan(mode){
     '<div style="font-size:12px;color:var(--t2)">Scanning '+STOCKS.length+' stocks simultaneously</div>'+
     '</div>';
   // Use backend /scan endpoint for real NSE gainers & losers
-  Promise.all([
-    fetch(API+'/scan/gainers').then(function(r){return r.json();}).catch(function(){return {status:'error'};}),
-    fetch(API+'/scan/losers').then(function(r){return r.json();}).catch(function(){return {status:'error'};})
-  ]).then(function(results){
-    var gainers = results[0].status==='ok' ? results[0].data : [];
-    var losers  = results[1].status==='ok' ? results[1].data : [];
-
-    if(gainers.length===0 && losers.length===0){
-      res.innerHTML=noDataHTML(mode); return;
-    }
-
-    var tm=mode==='intraday'?0.012:0.035;
-    var sm=mode==='intraday'?0.007:0.020;
-    var signals=[];
-
-    gainers.slice(0,5).forEach(function(s){
-      var price = parseFloat(s.price)||0;
-      var pct   = parseFloat(s.pct)||0;
-      if(!price) return;
-      signals.push({
-        type:'BUY', name:s.name||s.symbol, sym:s.symbol, sec:'NSE',
-        price:price, pct:pct, chg:parseFloat(s.change)||0,
-        entry:price, target:price*(1+tm), sl:price*(1-sm),
-        rr:'1:'+(tm/sm).toFixed(1),
-        reason:'NSE Top Gainer +'+Math.abs(pct).toFixed(2)+'% with high volume. '+(mode==='intraday'?'Momentum trade — enter near current price, book at target.':'Swing breakout — hold 3-5 days for target.'),
-        conf:Math.abs(pct)>2?'High':'Medium'
+  // Call unified /scan endpoint with full technical indicators
+  fetch(API+'/scan/'+mode)
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(j.status !== 'ok' || !j.data || j.data.length === 0){
+        res.innerHTML = noDataHTML(mode); return;
+      }
+      // Map backend signal fields to frontend format
+      var signals = j.data.map(function(s){
+        return {
+          type:   s.type,
+          name:   s.name,
+          sym:    s.symbol,
+          sec:    s.sector || 'NSE',
+          price:  s.price,
+          pct:    s.pct,
+          chg:    s.change,
+          entry:  s.entry,
+          target: s.target,
+          sl:     s.sl,
+          rr:     s.rr,
+          rsi:    s.rsi,
+          atr:    s.atr,
+          macd:   s.macd,
+          ema9:   s.ema9,
+          ema21:  s.ema21,
+          above9: s.above_ema9,
+          above21:s.above_ema21,
+          above50:s.above_ema50,
+          dayRange:  s.day_range,
+          w52Range:  s.w52_range,
+          conf:   s.confidence,
+          score:  s.score,
+          reason: s.reason
+        };
       });
-    });
-
-    losers.slice(0,5).forEach(function(s){
-      var price = parseFloat(s.price)||0;
-      var pct   = parseFloat(s.pct)||0;
-      if(!price) return;
-      signals.push({
-        type:'SELL', name:s.name||s.symbol, sym:s.symbol, sec:'NSE',
-        price:price, pct:pct, chg:parseFloat(s.change)||0,
-        entry:price, target:price*(1-tm), sl:price*(1+sm),
-        rr:'1:'+(tm/sm).toFixed(1),
-        reason:'NSE Top Loser '+Math.abs(pct).toFixed(2)+'% with heavy selling. '+(mode==='intraday'?'Short on any bounce near entry. Exit at target.':'Swing short — downtrend likely to continue 3-7 days.'),
-        conf:Math.abs(pct)>2?'High':'Medium'
-      });
-    });
-
-    allSignals=signals;
-    renderSignals(signals,mode);
-    try{ localStorage.setItem('investin_sigs',JSON.stringify({mode:mode,sigs:signals,ts:Date.now()})); }catch(e){}
-  }).catch(function(){ res.innerHTML=noDataHTML(mode); });
+      allSignals = signals;
+      renderSignals(signals, mode);
+      try{ localStorage.setItem('investin_sigs',JSON.stringify({mode:mode,sigs:signals,ts:Date.now()})); }catch(e){}
+    })
+    .catch(function(){ res.innerHTML = noDataHTML(mode); });
 }
 
 function noDataHTML(mode){
@@ -451,25 +445,73 @@ function renderSignals(signals,mode){
   res.innerHTML=html;
 }
 
+function rsiColor(r){ return r>70?'var(--r)':r<30?'var(--g)':'var(--t)'; }
+function emaTag(above,label){ return '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:'+(above?'var(--gl)':'var(--rl)')+';color:'+(above?'var(--gd)':'#A32D2D')+'">'+label+' '+(above?'✓':'✗')+'</span>'; }
+
 function buildCard(s){
-  var isBuy=s.type==='BUY';
-  var up=s.pct>=0;
-  var cc=s.conf==='High'?'var(--g)':'var(--am)';
+  var isBuy = s.type==='BUY';
+  var up    = s.pct >= 0;
+  var cc    = s.conf==='High'?'var(--g)':s.conf==='Medium'?'var(--am)':'var(--r)';
+  var hasInds = s.rsi !== undefined && s.rsi !== null;
   return '<div class="sig-card '+(isBuy?'bc':'sc')+'">'+
+
+    // Header
     '<div class="sig-hdr">'+
-      '<div><div class="sig-name">'+s.name+'</div><div class="sig-sym">'+s.sym+' | NSE | '+s.sec+'</div></div>'+
-      '<div style="text-align:right"><span class="sig-badge '+(isBuy?'bb':'bs')+'">'+(isBuy?'BUY':'SELL')+'</span>'+
-      '<div style="font-size:10px;margin-top:4px;color:'+cc+'">'+s.conf+' confidence</div></div>'+
+      '<div><div class="sig-name">'+s.name+'</div>'+
+      '<div class="sig-sym">'+s.sym+' | '+s.sec+'</div></div>'+
+      '<div style="text-align:right">'+
+        '<span class="sig-badge '+(isBuy?'bb':'bs')+'">'+(isBuy?'▲ BUY':'▼ SELL')+'</span>'+
+        '<div style="font-size:10px;margin-top:4px;color:'+cc+'">● '+s.conf+' confidence'+(s.score!==undefined?' ('+s.score+'/10)':'')+'</div>'+
+      '</div>'+
     '</div>'+
-    '<div class="cmp-row"><span class="cmp-val '+(up?'up':'dn')+'">'+fp(s.price)+'</span>'+
-    '<span class="cmp-chg '+(up?'up':'dn')+'">'+(up?'+':'')+s.pct.toFixed(2)+'%</span></div>'+
+
+    // Live price
+    '<div class="cmp-row">'+
+      '<span class="cmp-val '+(up?'up':'dn')+'">'+fp(s.price)+'</span>'+
+      '<span class="cmp-chg '+(up?'up':'dn')+'">'+(up?'+':'')+s.pct.toFixed(2)+'%</span>'+
+    '</div>'+
+
+    // Entry / Target / SL
     '<div class="sig-levels">'+
       '<div class="sig-lv"><div class="sig-lv-l">Entry</div><div class="sig-lv-v ev">'+fp(s.entry)+'</div></div>'+
       '<div class="sig-lv"><div class="sig-lv-l">Target</div><div class="sig-lv-v tv">'+fp(s.target)+'</div></div>'+
       '<div class="sig-lv"><div class="sig-lv-l">Stop Loss</div><div class="sig-lv-v sv">'+fp(s.sl)+'</div></div>'+
     '</div>'+
+
+    // Indicator badges
+    (hasInds ?
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+
+      '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:var(--bg);border:1px solid var(--br);color:'+rsiColor(s.rsi)+'">RSI '+s.rsi+'</span>'+
+      '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:var(--bg);border:1px solid var(--br);color:var(--t2)">ATR '+s.atr+'</span>'+
+      '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:'+(s.macd==='bullish'?'var(--gl)':'s.macd==="bearish"?var(--rl)':'var(--bg)')+';color:'+(s.macd==='bullish'?'var(--gd)':'s.macd==="bearish"?"#A32D2D"':'var(--t2)')+'">MACD '+s.macd+'</span>'+
+      (s.above9!==undefined?emaTag(s.above9,'EMA9'):'')+''+
+      (s.above21!==undefined?emaTag(s.above21,'EMA21'):'')+''+
+    '</div>'
+    : '') +
+
+    // Day range bar
+    (s.dayRange!==undefined ?
+    '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t2);margin-bottom:3px">'+
+        '<span>Day Low '+fp(s.entry*(1-(s.dayRange/100)*0.02))+'</span>'+
+        '<span>Range: '+s.dayRange+'%</span>'+
+        '<span>Day High</span>'+
+      '</div>'+
+      '<div style="height:4px;background:var(--bg);border-radius:2px;overflow:hidden">'+
+        '<div style="width:'+s.dayRange+'%;height:100%;background:'+(isBuy?'var(--g)':'var(--r)')+';border-radius:2px"></div>'+
+      '</div>'+
+    '</div>'
+    : '') +
+
+    // Reason
     '<div class="sig-reason">'+s.reason+'</div>'+
-    '<div class="sig-meta"><span>R:R <b>'+s.rr+'</b></span><span>Sector <b>'+s.sec+'</b></span></div>'+
+
+    // Meta
+    '<div class="sig-meta">'+
+      '<span>R:R <b>'+s.rr+'</b></span>'+
+      '<span>Sector <b>'+s.sec+'</b></span>'+
+      (s.w52Range!==undefined?'<span>52W Range <b>'+s.w52Range+'%</b></span>':'')+
+    '</div>'+
   '</div>';
 }
 

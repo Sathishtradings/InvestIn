@@ -322,22 +322,34 @@ var IDXS = [
 ];
 
 function loadIndices(){
-  fetchIdx().then(function(data){
-    var map = {
-      'NIFTY 50':   {vi:'i0',ci:'ic0'},
-      'NIFTY BANK': {vi:'i2',ci:'ic2'},
-      'NIFTY IT':   {vi:'i3',ci:'ic3'}
-    };
-    Object.keys(map).forEach(function(name){
-      var d = data[name];
-      var ids = map[name];
-      if(!d || !document.getElementById(ids.vi)) return;
-      document.getElementById(ids.vi).textContent = fp(d.price);
-      var el = document.getElementById(ids.ci);
-      el.textContent = (d.pct>=0?'+':'')+parseFloat(d.pct).toFixed(2)+'%';
-      el.className = 'ic '+(d.pct>=0?'up':'dn');
+  // Wake up backend silently — indices load when backend is ready
+  fetch(API+'/indices')
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(j.status !== 'ok') return;
+      var data = j.data;
+      var map = {
+        'NIFTY 50':   {vi:'i0',ci:'ic0'},
+        'NIFTY BANK': {vi:'i2',ci:'ic2'},
+        'NIFTY IT':   {vi:'i3',ci:'ic3'}
+      };
+      Object.keys(map).forEach(function(name){
+        var d = data[name];
+        var ids = map[name];
+        if(!d || !document.getElementById(ids.vi)) return;
+        document.getElementById(ids.vi).textContent = fp(d.price);
+        var el = document.getElementById(ids.ci);
+        el.textContent = (d.pct>=0?'+':'')+parseFloat(d.pct).toFixed(2)+'%';
+        el.className = 'ic '+(d.pct>=0?'up':'dn');
+      });
+    })
+    .catch(function(){
+      // Backend sleeping — indices will load when scan is triggered
+      ['i0','i1','i2','i3'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(el) el.textContent = '...';
+      });
     });
-  });
 }
 
 var allSignals=[], curMode='', curFilter='all';
@@ -353,14 +365,35 @@ function doScan(mode){
     '<div style="font-size:12px;color:var(--t2)">Scanning '+STOCKS.length+' stocks simultaneously</div>'+
     '</div>';
   // Use backend /scan endpoint for real NSE gainers & losers
-  // Call unified /scan endpoint with full technical indicators
+  // Wake up Render backend first (free tier sleeps after inactivity)
+  // Show countdown while waking up
+  var wakeStart = Date.now();
+  var countdown = 60;
+  var timer = setInterval(function(){
+    var elapsed = Math.round((Date.now()-wakeStart)/1000);
+    countdown = Math.max(0, 60-elapsed);
+    var el = document.getElementById('wake-countdown');
+    if(el) el.textContent = countdown > 0 ? 'Backend waking up... ' + countdown + 's' : 'Almost ready...';
+  }, 1000);
+
+  res.innerHTML = '<div style="text-align:center;padding:36px 20px">'+
+    '<div class="spin" style="margin:0 auto 16px"></div>'+
+    '<div style="font-size:14px;font-weight:600;color:var(--t);margin-bottom:8px">Fetching live NSE signals...</div>'+
+    '<div id="wake-countdown" style="font-size:12px;color:var(--am);margin-bottom:6px">Connecting to backend...</div>'+
+    '<div style="font-size:11px;color:var(--t2)">Free backend may take 30-60 sec to start</div>'+
+    '</div>';
+
+  // Use fetch with no timeout — let it wait for Render to wake up
   fetch(API+'/scan/'+mode)
-    .then(function(r){ return r.json(); })
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
     .then(function(j){
+      clearInterval(timer);
       if(j.status !== 'ok' || !j.data || j.data.length === 0){
         res.innerHTML = noDataHTML(mode); return;
       }
-      // Map backend signal fields to frontend format
       var signals = j.data.map(function(s){
         return {
           type:   s.type,
@@ -393,7 +426,15 @@ function doScan(mode){
       renderSignals(signals, mode);
       try{ localStorage.setItem('investin_sigs',JSON.stringify({mode:mode,sigs:signals,ts:Date.now()})); }catch(e){}
     })
-    .catch(function(){ res.innerHTML = noDataHTML(mode); });
+    .catch(function(err){
+      clearInterval(timer);
+      res.innerHTML = '<div style="text-align:center;padding:30px;background:var(--rl);border-radius:var(--radl);margin-bottom:12px">'+
+        '<div style="font-size:28px;margin-bottom:10px">&#9888;</div>'+
+        '<div style="font-size:14px;font-weight:600;color:var(--r);margin-bottom:6px">Backend Unavailable</div>'+
+        '<div style="font-size:12px;color:var(--t2);margin-bottom:16px">Error: '+err.message+'<br>NSE hours: Mon-Fri 9:15am-3:30pm IST</div>'+
+        '<button onclick="doScan(''+mode+'')" style="padding:10px 24px;background:var(--g);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fn)">Retry</button>'+
+      '</div>';
+    });
 }
 
 function noDataHTML(mode){
